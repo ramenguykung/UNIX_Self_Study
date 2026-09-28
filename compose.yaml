@@ -1,0 +1,29 @@
+services:
+  api:
+    build: ./api
+    expose:
+      - "8000"
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+
+  nginx:
+    image: nginx:stable-alpine
+    depends_on:
+      - api
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./logs:/var/log/nginx
+
+  analyzer:
+    image: alpine:3.22
+    profiles:
+      - tools
+    entrypoint:
+      - /bin/sh
+      - /work/analyze.sh
+    volumes:
+      - ./scripts:/work:ro
+      - ./logs:/logs:ro
+      - ./reports:/reports
