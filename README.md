@@ -1,6 +1,6 @@
 # Docker Compose Web Log Analyzer
 
-This small coursework project runs a Python API behind Nginx. Nginx saves access and error logs on the host. A separate, on-demand Alpine container runs a POSIX shell script to summarize the access log with `grep`, `awk`, `sort`, and `uniq`.
+This small coursework project runs a Python API behind Nginx. Nginx saves access and error logs on the host. An optional, persistent Alpine container lets you run a POSIX shell script on demand to summarize the access log with `grep`, `awk`, `sort`, and `uniq`.
 
 ## Architecture
 
@@ -45,27 +45,22 @@ Nginx writes `logs/access.log` in the standard combined format and `logs/error.l
 
 The access log includes response statuses from the API. A simulated API `500` appears in the access log; Nginx's error log records Nginx or upstream errors and may remain empty during normal demo requests.
 
-Run the analyzer once, reading the mounted access log and writing into `reports/`:
+Start the persistent analyzer container, then run the script inside it. The analyzer stays running so you can repeat the analysis as logs grow:
 
 ```powershell
-docker compose run --rm analyzer
+docker compose --profile tools up -d analyzer
+docker compose --profile tools exec analyzer sh /work/analyze.sh
 ```
 
 Optional arguments are the log file, failed-login threshold, and output directory, in that order:
 
 ```powershell
-docker compose run --rm analyzer /logs/access.log 3 /reports
+docker compose --profile tools exec analyzer sh /work/analyze.sh /logs/access.log 3 /reports
 ```
+
+To enter the persistent analyzer container interactively, run `docker compose --profile tools exec analyzer sh`. Then run `sh /work/analyze.sh /logs/access.log 5 /reports` at its shell prompt. To run just one report without keeping an analyzer container, use `docker compose run --rm --entrypoint sh analyzer /work/analyze.sh`.
 
 The outputs are `summary.txt`, `ip_counts.csv`, `url_counts.csv`, `status_counts.csv`, and `alerts.csv`. An empty log produces zero counts and CSV headers. A missing/unreadable log or invalid threshold produces an error and a nonzero exit code.
-
-To practice in an interactive Linux shell inside the analyzer container:
-
-```powershell
-docker compose run --rm --entrypoint sh analyzer
-# Inside the container:
-sh /work/analyze.sh /logs/access.log 5 /reports
-```
 
 This uses Docker's container shell; no SSH server is needed in the container. If Docker runs on another machine, SSH into that host and run the same Compose commands there.
 
@@ -81,4 +76,4 @@ Get-Content reports/summary.txt
 Get-Content reports/alerts.csv
 ```
 
-Stop the services with `docker compose down`. Logs and reports remain in their host folders so they can be inspected after shutdown.
+Stop the services with `docker compose --profile tools down`. Logs and reports remain in their host folders so they can be inspected after shutdown.
